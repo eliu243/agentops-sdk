@@ -10,7 +10,8 @@ python -m venv .venv
 source .venv/bin/activate
 
 # Install the SDK in development mode
-pip install -e agentops-sdk[openai]
+cd ~/agentops-sdk
+pip install -e .[openai]
 ```
 
 ## Quickstart (Local Demo)
