@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  api:
+    image: python:3.11-slim
+    working_dir: /app
+    command: sh -c "pip install fastapi uvicorn sqlalchemy pydantic httpx && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./services/api/app:/app/app
+      - api_db:/data
+    environment:
+      - AGENTOPS_DB_DIR=/data
+    ports:
+      - "8000:8000"
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm ci || npm i && npm run dev -- --host"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./services/web:/app
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  api_db:
+
+

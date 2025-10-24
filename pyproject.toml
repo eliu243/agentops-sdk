@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling>=1.18.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agentops-sdk"
+version = "0.1.0"
+description = "AgentOps SDK: DevSecOps guardrails and observability for autonomous agents (OpenAI MVP)."
+authors = [
+  { name = "AgentOps", email = "dev@agentops.local" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = [
+  "httpx>=0.27.0",
+  "pydantic>=2.7.0",
+  "typing_extensions>=4.8.0"
+]
+readme = "README.md"
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Libraries",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.40.0"]
+
+[project.urls]
+Homepage = "https://example.com/agentops"
+Repository = "https://example.com/agentops/repo"
+Issues = "https://example.com/agentops/issues"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/agentops/**",
+  "README.md",
+  "LICENSE"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentops"]
+
+
