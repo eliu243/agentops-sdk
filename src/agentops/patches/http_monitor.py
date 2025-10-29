@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 from ..transport import post_event
 from ..runtime import current_run_id
+from ..config import config
+from ..policy import evaluate
 
 
 def _extract_service_name(url: str) -> str:
@@ -97,6 +99,44 @@ def _log_http_call(
         pass  # Don't break the user's code if monitoring fails
 
 
+def _evaluate_and_maybe_block(url: str, request_data: Any) -> None:
+    """Apply egress policy; log and optionally block."""
+    try:
+        text = None
+        if isinstance(request_data, (str, bytes)):
+            text = request_data.decode("utf-8", "ignore") if isinstance(request_data, bytes) else request_data
+        elif isinstance(request_data, dict):
+            # Avoid dumping secrets; stringify compactly
+            text = json.dumps(request_data, default=str)
+        elif request_data is not None:
+            text = str(request_data)
+
+        result = evaluate(text, direction="egress", extra_forbidden=config.forbidden_patterns)
+        if not result.allowed:
+            # Log guardrail violation as an A2A event
+            post_event(
+                {
+                    "run_id": current_run_id(),
+                    "type": "a2a_guardrail_violation",
+                    "method": "EGRESS",
+                    "url": url,
+                    "service_name": "guardrail",
+                    "request_data": _safe_serialize(text),
+                    "response_data": None,
+                    "status_code": 0,
+                    "duration_ms": 0,
+                    "error": f"{result.label}:{result.reason}:{','.join(result.matches)[:180]}",
+                    "created_at": int(time.time() * 1000),
+                }
+            )
+            if config.block_on_violation:
+                raise RuntimeError("Egress blocked by policy: unauthorized content detected")
+    except Exception:
+        # Do not break if policy evaluation fails; only block on explicit decision
+        if config.block_on_violation:
+            raise
+
+
 def patch_requests():
     """Patch the requests library for HTTP monitoring."""
     try:
@@ -116,6 +156,9 @@ def patch_requests():
                 request_data = kwargs.get('data') or kwargs.get('json')
                 
                 try:
+                    # Egress policy check before sending
+                    _evaluate_and_maybe_block(url, request_data)
+
                     # Make the actual request
                     response = original_method(*args, **kwargs)
                     
@@ -174,6 +217,9 @@ def patch_httpx():
                 request_data = kwargs.get('data') or kwargs.get('json')
                 
                 try:
+                    # Egress policy check before sending
+                    _evaluate_and_maybe_block(url, request_data)
+
                     # Make the actual request
                     response = original_method(*args, **kwargs)
                     
